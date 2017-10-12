@@ -2,8 +2,8 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Datetime from 'react-datetime';
 import moment from 'moment';
- import { validations } from '../utils/validations';
-import { FormErrors } from '../components/FormErrors';
+import { validations } from '../utils/validations';
+import { FormErrors } from './FormErrors';
 import update from 'immutability-helper';
 import $ from 'jquery';
 import './react-datetime.css'
@@ -18,9 +18,9 @@ export default class AppointmentForm extends React.Component {
         this.state = {
             title: {value: '', valid: false},
             appt_time: {value: new Date(), valid: false},
-            editing: false,
+            formErrors: {},
             formValid: false,
-            formErrors: {}
+            editing: false
         }
     }
 
@@ -38,7 +38,8 @@ export default class AppointmentForm extends React.Component {
             $.ajax({
                 type: 'GET',
                 url: `http://localhost:3001/appointments/${this.props.match.params.id}`,
-                dataType: 'JSON'
+                dataType: 'JSON',
+                headers: JSON.parse(sessionStorage.getItem('user'))
             }).done((data) => {
                 this.setState({
                     title: {value: data.title, valid: true},
@@ -79,7 +80,7 @@ export default class AppointmentForm extends React.Component {
 
     validateForm () {
         this.setState({formValid: this.state.title.valid &&
-        this.state.appt_time.valid
+                                  this.state.appt_time.valid
         })
     }
 
@@ -96,7 +97,8 @@ export default class AppointmentForm extends React.Component {
         $.ajax({
             type: "PATCH",
             url: `http://localhost:3001/appointments/${this.props.match.params.id}`,
-            data: {appointment: appointment}
+            data: {appointment: appointment},
+            headers: JSON.parse(sessionStorage.getItem('user'))
         })
         .done((data) => {
             console.log('appointment updated!');
@@ -115,25 +117,30 @@ export default class AppointmentForm extends React.Component {
             title: this.state.title.value,
             appt_time: this.state.appt_time.value
         };
-        $.post('http://localhost:3001/appointments',
-            {appointment: appointment})
-            .done((data) => {
-                this.props.handleNewAppointment(data);
-                this.resetFormErrors();
-            })
-            .fail((response) => {
-                this.setState({
-                    formErrors: response.responseJSON,
-                    formValid: false
-                });
+        $.ajax({
+            type: 'POST',
+            url: 'http://localhost:3001/appointments',
+            data: {appointment: appointment},
+            headers: JSON.parse(sessionStorage.getItem('user' ))
+        })
+        .done((data) => {
+            this.props.handleNewAppointment(data);
+            this.resetFormErrors();
+        })
+        .fail((response) => {
+            this.setState({
+                formErrors: response.responseJSON,
+                formValid: false
             });
+        });
     }
 
     deleteAppointment = ()=> {
         // if(confirm("Are you sure you want to delete this appointment?")) {
             $.ajax({
                 type: "DELETE",
-                url: `http://localhost:3001/appointments/${this.props.match.params.id}`
+                url: `http://localhost:3001/appointments/${this.props.match.params.id}`,
+                headers: JSON.parse(sessionStorage.getItem('user' ))
             })
             .done((data) => {
                 this.props.history.push('/');
@@ -144,17 +151,6 @@ export default class AppointmentForm extends React.Component {
             });
 
         // }
-        $.ajax({
-            type: "DELETE",
-            url: `http://localhost:3001/appointments/${this.props.match.params.id}`
-        })
-        .done((data) => {
-            this.props.history.push('/');
-            this.resetFormErrors();
-        })
-        .fail((response) => {
-            console.log('appointment deleting failed!');
-        });
     }
 
     resetFormErrors () {
@@ -188,7 +184,8 @@ export default class AppointmentForm extends React.Component {
                     }
                 </h2>
                 <FormErrors formErrors={this.state.formErrors} />
-                <form onSubmit={(event) => this.handleFormSubmit(event)}>
+                {/* <form onSubmit={(event) => this.handleFormSubmit(event)}> */}
+                <form onSubmit={this.handleFormSubmit}>
                     <input name='title'
                            placeholder='Appointment Title'
                            value={this.state.title.value}
